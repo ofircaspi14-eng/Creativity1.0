@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ניהול נכסים | אופיר כספי</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --teal-50:#E1F5EE;--teal-100:#9FE1CB;--teal-200:#5DCAA5;
+  --teal-600:#0F6E56;--teal-800:#085041;--teal-900:#04342C;
+  --amber-50:#FAEEDA;--amber-100:#FAC775;--amber-800:#633806;
+  --coral-50:#FAECE7;--coral-100:#F5C4B3;--coral-600:#993C1D;--coral-800:#712B13;
+  --red-50:#FCEBEB;--red-100:#F7C1C1;--red-600:#A32D2D;--red-800:#791F1F;
+  --green-50:#EAF3DE;--green-100:#C0DD97;--green-600:#3B6D11;--green-800:#27500A;
+  --gray-50:#F1EFE8;--gray-100:#D3D1C7;--gray-400:#888780;--gray-600:#5F5E5A;
+  --bg:#F8FAFC;--card:#fff;--border:#E2E8F0;--text:#1E293B;--muted:#64748B;--subtle:#94A3B8;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);direction:rtl;}
+
+/* AUTH */
+.auth-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--teal-900);}
+.auth-card{background:#fff;border-radius:16px;padding:40px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,0.2);}
+.auth-logo{text-align:center;margin-bottom:28px;}
+.auth-logo h1{font-size:22px;font-weight:600;color:var(--teal-800);margin-top:8px;}
+.auth-logo p{font-size:13px;color:var(--muted);margin-top:4px;}
+.auth-tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:24px;}
+.auth-tab{flex:1;padding:10px;text-align:center;font-size:14px;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;background:none;border-top:none;border-left:none;border-right:none;font-family:inherit;}
+.auth-tab.active{color:var(--teal-600);border-bottom-color:var(--teal-600);font-weight:500;}
+.form-group{margin-bottom:16px;}
+.form-group label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;}
+.form-group input{width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;color:var(--text);transition:border 0.15s;}
+.form-group input:focus{outline:none;border-color:var(--teal-600);box-shadow:0 0 0 3px rgba(15,110,86,0.1);}
+.btn-auth{width:100%;padding:12px;background:var(--teal-800);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:500;cursor:pointer;font-family:inherit;transition:background 0.15s;margin-top:8px;}
+.btn-auth:hover{background:var(--teal-900);}
+.auth-error{background:#FEF2F2;color:#991B1B;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:16px;display:none;}
+
+/* APP */
+.app{display:none;min-height:100vh;}
+.header{background:var(--teal-800);padding:16px 24px;color:#fff;display:flex;align-items:center;justify-content:space-between;}
+.header-left h1{font-size:18px;font-weight:500;}
+.header-left p{font-size:12px;opacity:0.65;margin-top:2px;}
+.header-right{display:flex;align-items:center;gap:12px;}
+.header-date{font-size:12px;opacity:0.6;}
+.btn-logout{font-size:12px;padding:6px 14px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:6px;color:#fff;cursor:pointer;font-family:inherit;}
+.btn-logout:hover{background:rgba(255,255,255,0.25);}
+
+.nav{background:#fff;display:flex;justify-content:center;border-bottom:0.5px solid var(--border);overflow-x:auto;}
+.nav-btn{padding:12px 16px;font-size:13px;color:var(--muted);border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all 0.15s;font-family:inherit;}
+.nav-btn:hover{color:var(--teal-600);background:var(--teal-50);}
+.nav-btn.active{color:var(--teal-600);border-bottom-color:var(--teal-600);font-weight:500;}
+
+.content{padding:24px;max-width:1100px;margin:0 auto;}
+
+/* STATS */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;}
+.stat-card{background:#F8FAFC;border-radius:8px;padding:14px 16px;}
+.stat-label{font-size:11px;color:var(--subtle);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px;}
+.stat-value{font-size:22px;font-weight:500;}
+.stat-sub{font-size:11px;color:var(--subtle);margin-top:2px;}
+
+/* PROPS */
+.props-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin-bottom:24px;}
+.prop-card{background:#fff;border:0.5px solid var(--border);border-radius:12px;padding:16px;cursor:pointer;transition:all 0.15s;}
+.prop-card:hover{border-color:#9FE1CB;}
+.prop-city{font-size:10px;font-weight:500;color:var(--teal-600);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+.prop-street{font-size:15px;font-weight:500;margin-bottom:10px;}
+.prop-status{display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:3px 10px;border-radius:20px;}
+.rented{background:var(--green-50);color:var(--green-800);}
+.vacant{background:var(--amber-50);color:var(--amber-800);}
+.expiring{background:var(--red-50);color:var(--red-800);}
+.prop-income{font-size:12px;color:var(--muted);margin-top:10px;}
+.prop-income span{color:var(--text);font-weight:500;}
+
+/* ALERTS */
+.alerts-section{margin-bottom:24px;}
+.alert-item{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:8px;margin-bottom:8px;font-size:13px;}
+.alert-item.warn{background:var(--amber-50);color:var(--amber-800);border:0.5px solid var(--amber-100);}
+.alert-item.danger{background:var(--red-50);color:var(--red-800);border:0.5px solid var(--red-100);}
+.alert-dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0;}
+.alert-actions{margin-right:auto;}
+
+/* TABLE */
+.table-card{background:#fff;border:0.5px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:20px;}
+.table-header{padding:14px 20px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.table-header h3{font-size:14px;font-weight:500;}
+table{width:100%;border-collapse:collapse;}
+th{font-size:11px;color:var(--subtle);font-weight:400;padding:10px 16px;text-align:right;border-bottom:0.5px solid var(--border);background:#F8FAFC;letter-spacing:0.4px;text-transform:uppercase;}
+td{font-size:13px;padding:12px 16px;text-align:right;border-bottom:0.5px solid var(--border);color:var(--text);}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:#F8FAFC;}
+.income-amt{color:var(--green-600);font-weight:500;}
+.expense-amt{color:var(--coral-600);font-weight:500;}
+.badge{display:inline-block;font-size:11px;padding:2px 9px;border-radius:20px;}
+.badge-green{background:var(--green-50);color:var(--green-800);}
+.badge-coral{background:var(--coral-50);color:var(--coral-800);}
+.badge-blue{background:#EFF6FF;color:#1E40AF;}
+.badge-amber{background:var(--amber-50);color:var(--amber-800);}
+
+/* FORM */
+.form-card{background:#fff;border:0.5px solid var(--border);border-radius:12px;padding:24px;margin-bottom:20px;}
+.form-title{font-size:15px;font-weight:500;margin-bottom:20px;padding-bottom:12px;border-bottom:0.5px solid var(--border);}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.fg{display:flex;flex-direction:column;gap:6px;}
+.fg.full{grid-column:1/-1;}
+.fg label{font-size:12px;color:var(--muted);}
+.fg input,.fg select,.fg textarea{padding:8px 12px;border:0.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;color:var(--text);background:#fff;width:100%;}
+.fg input:focus,.fg select:focus,.fg textarea:focus{outline:none;border-color:var(--teal-600);box-shadow:0 0 0 2px rgba(15,110,86,0.1);}
+.fg textarea{resize:vertical;min-height:80px;}
+.form-actions{display:flex;gap:10px;margin-top:20px;justify-content:center;}
+.btn-primary{padding:10px 28px;border-radius:8px;background:var(--teal-800);color:#fff;border:none;font-size:14px;cursor:pointer;font-family:inherit;font-weight:500;transition:background 0.15s;}
+.btn-primary:hover{background:var(--teal-900);}
+.btn-secondary{padding:10px 24px;border-radius:8px;background:none;color:var(--muted);border:0.5px solid var(--border);font-size:14px;cursor:pointer;font-family:inherit;transition:all 0.15s;}
+.btn-secondary:hover{background:#F8FAFC;}
+
+/* CONTRACTS */
+.contract-card{background:#fff;border:0.5px solid var(--border);border-radius:12px;padding:20px;margin-bottom:14px;}
+.contract-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;}
+.contract-tenant{font-size:16px;font-weight:500;}
+.contract-addr{font-size:13px;color:var(--muted);margin-top:2px;}
+.contract-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+.cf label{font-size:10px;color:var(--subtle);display:block;margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px;}
+.cf span{font-size:13px;font-weight:500;}
+.days-badge{padding:4px 12px;border-radius:20px;font-size:12px;font-weight:500;display:inline-block;}
+
+/* RECEIPT UPLOAD */
+.upload-area{border:2px dashed var(--teal-100);border-radius:12px;padding:40px;text-align:center;cursor:pointer;transition:all 0.15s;background:var(--teal-50);}
+.upload-area:hover{border-color:var(--teal-600);background:#d8f0e8;}
+.upload-area.dragover{border-color:var(--teal-600);background:#d0ece3;}
+.upload-icon{font-size:40px;margin-bottom:12px;}
+.upload-title{font-size:15px;font-weight:500;color:var(--teal-800);margin-bottom:6px;}
+.upload-sub{font-size:13px;color:var(--muted);}
+#receipt-file{display:none;}
+
+.receipt-preview{background:#fff;border:0.5px solid var(--border);border-radius:12px;padding:20px;margin-top:20px;display:none;}
+.receipt-preview h3{font-size:14px;font-weight:500;margin-bottom:16px;color:var(--teal-800);}
+.ai-result{background:var(--teal-50);border:0.5px solid var(--teal-100);border-radius:8px;padding:16px;margin-bottom:16px;}
+.ai-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:0.5px solid var(--teal-100);font-size:13px;}
+.ai-row:last-child{border-bottom:none;}
+.ai-label{color:var(--muted);}
+.ai-val{font-weight:500;color:var(--text);}
+.ai-confidence{font-size:11px;padding:2px 8px;border-radius:20px;background:var(--green-50);color:var(--green-800);}
+.analyzing{text-align:center;padding:30px;color:var(--muted);font-size:14px;}
+.spinner{width:32px;height:32px;border:3px solid var(--teal-100);border-top-color:var(--teal-600);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* NOTIFICATIONS */
+.notif-email{background:var(--teal-50);border:0.5px solid var(--teal-100);border-radius:8px;padding:14px 18px;margin-bottom:12px;font-size:13px;color:var(--teal-800);display:flex;align-items:center;gap:12px;}
+.email-icon{width:30px;height:30px;background:var(--teal-100);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px;}
+
+/* FILTER */
+.filter-row{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
+.filter-select{padding:7px 12px;border:0.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;color:var(--text);background:#fff;}
+
+/* SECTION TITLE */
+.section-title{font-size:11px;font-weight:500;color:var(--subtle);margin-bottom:12px;text-transform:uppercase;letter-spacing:0.8px;}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(120px);background:var(--teal-900);color:#fff;padding:12px 24px;border-radius:8px;font-size:14px;z-index:9999;transition:transform 0.3s ease;pointer-events:none;}
+.toast.show{transform:translateX(-50%) translateY(0);}
+
+.empty-state{text-align:center;padding:40px;color:var(--muted);font-size:14px;}
+.loading-state{text-align:center;padding:30px;color:var(--muted);font-size:13px;}
+
+/* USERS */
+.user-card{background:#fff;border:0.5px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;}
+.user-info{display:flex;align-items:center;gap:12px;}
+.user-avatar{width:40px;height:40px;border-radius:50%;background:var(--teal-50);display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--teal-800);font-weight:500;}
+.user-name{font-size:14px;font-weight:500;}
+.user-email{font-size:12px;color:var(--muted);}
+
+@media(max-width:600px){
+  .stats-row{grid-template-columns:1fr 1fr;}
+  .form-grid{grid-template-columns:1fr;}
+  .contract-grid{grid-template-columns:1fr 1fr;}
+  .props-grid{grid-template-columns:1fr;}
+  .nav{justify-content:flex-start;}
+  .header{padding:12px 16px;}
+  .content{padding:16px;}
+}
+</style>
+</head>
+<body>
+
+<!-- AUTH SCREEN -->
+<div class="auth-wrap" id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div style="font-size:36px;">🏠</div>
+      <h1>ניהול נכסים</h1>
+      <p>אופיר כספי</p>
+    </div>
+    <div id="auth-error" class="auth-error"></div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchAuthTab('login')">כניסה</button>
+      <button class="auth-tab" onclick="switchAuthTab('register')">הרשמה</button>
+    </div>
+    <div id="login-form">
+      <div class="form-group"><label>כתובת מייל</label><input type="email" id="login-email" placeholder="you@email.com" /></div>
+      <div class="form-group"><label>סיסמה</label><input type="password" id="login-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()" /></div>
+      <button class="btn-auth" onclick="doLogin()">כניסה למערכת</button>
+    </div>
+    <div id="register-form" style="display:none;">
+      <div class="form-group"><label>שם מלא</label><input type="text" id="reg-name" placeholder="אופיר כספי" /></div>
+      <div class="form-group"><label>כתובת מייל</label><input type="email" id="reg-email" placeholder="you@email.com" /></div>
+      <div class="form-group"><label>סיסמה (לפחות 6 תווים)</label><input type="password" id="reg-pass" placeholder="••••••••" /></div>
+      <button class="btn-auth" onclick="doRegister()">יצירת חשבון</button>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app" id="app">
+  <div class="header">
+    <div class="header-left">
+      <h1>אופיר כספי — ניהול נכסים</h1>
+      <p id="header-date"></p>
+    </div>
+    <div class="header-right">
+      <span id="user-greeting" style="font-size:13px;opacity:0.75;"></span>
+      <button class="btn-logout" onclick="doLogout()">יציאה</button>
+    </div>
+  </div>
+
+  <div class="nav">
+    <button class="nav-btn active" onclick="showTab('dashboard')">לוח בקרה</button>
+    <button class="nav-btn" onclick="showTab('contracts')">חוזים</button>
+    <button class="nav-btn" onclick="showTab('add-contract')">+ חוזה חדש</button>
+    <button class="nav-btn" onclick="showTab('finance')">הכנסות / הוצאות</button>
+    <button class="nav-btn" onclick="showTab('add-finance')">+ רשומה</button>
+    <button class="nav-btn" onclick="showTab('receipts')">📎 קבלות AI</button>
+    <button class="nav-btn" onclick="showTab('notifications')">התראות</button>
+    <button class="nav-btn" onclick="showTab('users')">משתמשים</button>
+  </div>
+
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div id="tab-dashboard">
+      <div class="stats-row">
+        <div class="stat-card"><div class="stat-label">הכנסה חודשית</div><div class="stat-value" id="s-monthly">₪0</div><div class="stat-sub">מכלל הדירות</div></div>
+        <div class="stat-card"><div class="stat-label">הכנסה שנתית</div><div class="stat-value" id="s-annual">₪0</div><div class="stat-sub">בחוזים פעילים</div></div>
+        <div class="stat-card"><div class="stat-label">הוצאות</div><div class="stat-value" id="s-expenses">₪0</div><div class="stat-sub">סה"כ</div></div>
+        <div class="stat-card"><div class="stat-label">מושכרות</div><div class="stat-value" id="s-rented">0 / 4</div><div class="stat-sub">דירות פעילות</div></div>
+      </div>
+      <div class="section-title">הדירות שלך</div>
+      <div class="props-grid" id="props-grid"></div>
+      <div id="alerts-section"></div>
+      <div class="table-card">
+        <div class="table-header"><h3>פעולות אחרונות</h3></div>
+        <table><thead><tr><th>תאריך</th><th>דירה</th><th>סוג</th><th>תיאור</th><th>סכום</th></tr></thead>
+        <tbody id="recent-tbody"></tbody></table>
+      </div>
+    </div>
+
+    <!-- CONTRACTS LIST -->
+    <div id="tab-contracts" style="display:none;">
+      <div class="section-title">כל החוזים</div>
+      <div id="contracts-list"></div>
+    </div>
+
+    <!-- ADD CONTRACT -->
+    <div id="tab-add-contract" style="display:none;">
+      <div class="form-card">
+        <div class="form-title">הוסף חוזה שכירות חדש</div>
+        <div class="form-grid">
+          <div class="fg"><label>דירה</label><select id="c-prop"><option value="">בחר דירה...</option><option value="0">באר שבע · הכנסת</option><option value="1">באר שבע · הכ"ג</option><option value="2">נתיבות · רפיח ים</option><option value="3">אשקלון · שפירא</option></select></div>
+          <div class="fg"><label>שם השוכר</label><input type="text" id="c-tenant" placeholder="שם מלא" /></div>
+          <div class="fg"><label>טלפון שוכר</label><input type="tel" id="c-phone" placeholder="050-0000000" /></div>
+          <div class="fg"><label>מייל שוכר</label><input type="email" id="c-email" placeholder="tenant@email.com" /></div>
+          <div class="fg"><label>תחילת חוזה</label><input type="date" id="c-start" /></div>
+          <div class="fg"><label>סיום חוזה</label><input type="date" id="c-end" /></div>
+          <div class="fg"><label>שכר דירה חודשי (₪)</label><input type="number" id="c-rent" placeholder="3500" /></div>
+          <div class="fg"><label>יום תשלום בחודש</label><input type="number" id="c-day" placeholder="1" min="1" max="28" /></div>
+          <div class="fg"><label>פיקדון (₪)</label><input type="number" id="c-deposit" placeholder="7000" /></div>
+          <div class="fg"><label>ת.ז. שוכר</label><input type="text" id="c-id" placeholder="000000000" /></div>
+          <div class="fg full"><label>הערות</label><textarea id="c-notes" placeholder="בעלי חיים, חניה, תנאים מיוחדים..."></textarea></div>
+        </div>
+        <div class="form-actions">
+          <button class="btn-primary" onclick="saveContract()">שמור חוזה</button>
+          <button class="btn-secondary" onclick="showTab('contracts')">ביטול</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- FINANCE LIST -->
+    <div id="tab-finance" style="display:none;">
+      <div class="filter-row">
+        <select class="filter-select" id="ff-prop" onchange="renderFinance()"><option value="">כל הדירות</option><option value="0">באר שבע · הכנסת</option><option value="1">באר שבע · הכ"ג</option><option value="2">נתיבות · רפיח ים</option><option value="3">אשקלון · שפירא</option></select>
+        <select class="filter-select" id="ff-type" onchange="renderFinance()"><option value="">הכל</option><option value="income">הכנסות</option><option value="expense">הוצאות</option></select>
+        <select class="filter-select" id="ff-year" onchange="renderFinance()"><option value="">כל השנים</option><option value="2024">2024</option><option value="2025">2025</option><option value="2026">2026</option></select>
+      </div>
+      <div class="table-card">
+        <div class="table-header"><h3>רשומות כספיות</h3><span id="finance-summary" style="font-size:13px;color:var(--muted);"></span></div>
+        <table><thead><tr><th>תאריך</th><th>דירה</th><th>קטגוריה</th><th>תיאור</th><th>קבלה</th><th>סכום</th></tr></thead>
+        <tbody id="finance-tbody"></tbody></table>
+      </div>
+    </div>
+
+    <!-- ADD FINANCE -->
+    <div id="tab-add-finance" style="display:none;">
+      <div class="form-card">
+        <div class="form-title">הוסף הכנסה / הוצאה</div>
+        <div class="form-grid">
+          <div class="fg"><label>סוג</label><select id="f-type"><option value="income">הכנסה</option><option value="expense">הוצאה</option></select></div>
+          <div class="fg"><label>דירה</label><select id="f-prop"><option value="0">באר שבע · הכנסת</option><option value="1">באר שבע · הכ"ג</option><option value="2">נתיבות · רפיח ים</option><option value="3">אשקלון · שפירא</option></select></div>
+          <div class="fg"><label>קטגוריה</label><select id="f-cat"><option>שכר דירה</option><option>תיקון / תחזוקה</option><option>ארנונה</option><option>ועד בית</option><option>ביטוח</option><option>שיפוץ</option><option>פיקדון</option><option>אחר</option></select></div>
+          <div class="fg"><label>סכום (₪)</label><input type="number" id="f-amount" placeholder="0" /></div>
+          <div class="fg"><label>תאריך</label><input type="date" id="f-date" /></div>
+          <div class="fg full"><label>תיאור</label><input type="text" id="f-desc" placeholder="פירוט..." /></div>
+        </div>
+        <div class="form-actions">
+          <button class="btn-primary" onclick="saveFinance()">שמור</button>
+          <button class="btn-secondary" onclick="showTab('finance')">ביטול</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RECEIPTS AI -->
+    <div id="tab-receipts" style="display:none;">
+      <div class="form-card">
+        <div class="form-title">📎 העלאת קבלה — זיהוי אוטומטי עם AI</div>
+        <div class="upload-area" id="upload-area" onclick="document.getElementById('receipt-file').click()" ondragover="handleDrag(event)" ondrop="handleDrop(event)">
+          <div class="upload-icon">📄</div>
+          <div class="upload-title">לחץ להעלאת קבלה או גרור לכאן</div>
+          <div class="upload-sub">PNG, JPG, PDF — עד 10MB</div>
+        </div>
+        <input type="file" id="receipt-file" accept="image/*,.pdf" onchange="handleReceiptFile(this.files[0])" />
+      </div>
+
+      <div class="receipt-preview" id="receipt-preview">
+        <h3>תוצאת ניתוח AI</h3>
+        <div id="ai-result-content"></div>
+        <div class="form-actions" id="receipt-actions" style="display:none;">
+          <button class="btn-primary" onclick="confirmReceipt()">אשר ושמור לרשומות</button>
+          <button class="btn-secondary" onclick="resetReceipt()">בטל</button>
+        </div>
+      </div>
+
+      <div class="table-card" style="margin-top:20px;">
+        <div class="table-header"><h3>קבלות שהועלו</h3></div>
+        <table><thead><tr><th>תאריך</th><th>קובץ</th><th>דירה (AI)</th><th>סכום</th><th>סטטוס</th><th>קישור</th></tr></thead>
+        <tbody id="receipts-tbody"></tbody></table>
+      </div>
+    </div>
+
+    <!-- NOTIFICATIONS -->
+    <div id="tab-notifications" style="display:none;">
+      <div class="form-card">
+        <div class="form-title">הגדרות התראות מייל</div>
+        <div class="form-grid">
+          <div class="fg full"><label>כתובת מייל לקבלת התראות</label><input type="email" id="notif-email" placeholder="ofir@email.com" /></div>
+          <div class="fg"><label>התרע X ימים לפני סיום חוזה</label><select id="notif-days"><option value="30">30 יום</option><option value="60">60 יום</option><option value="90" selected>90 יום</option></select></div>
+        </div>
+        <div class="form-actions">
+          <button class="btn-primary" onclick="saveNotif()">שמור הגדרות</button>
+        </div>
+      </div>
+      <div class="section-title">חוזים שמתקרבים לסיום</div>
+      <div id="notif-preview"></div>
+    </div>
+
+    <!-- USERS -->
+    <div id="tab-users" style="display:none;">
+      <div class="form-card">
+        <div class="form-title">הוסף משתמש חדש</div>
+        <div class="form-grid">
+          <div class="fg"><label>שם מלא</label><input type="text" id="new-user-name" placeholder="שם המשתמש" /></div>
+          <div class="fg"><label>מייל</label><input type="email" id="new-user-email" placeholder="user@email.com" /></div>
+          <div class="fg"><label>סיסמה זמנית</label><input type="password" id="new-user-pass" placeholder="לפחות 6 תווים" /></div>
+          <div class="fg"><label>תפקיד</label><select id="new-user-role"><option value="viewer">צפייה בלבד</option><option value="admin">מנהל</option></select></div>
+        </div>
+        <div class="form-actions">
+          <button class="btn-primary" onclick="inviteUser()">הוסף משתמש</button>
+        </div>
+      </div>
+      <div class="section-title">משתמשים רשומים</div>
+      <div id="users-list"></div>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// =============================================
+// CONFIG
+// =============================================
+const SUPABASE_URL = 'https://mttikpwxbkfysjnyeiqf.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_XGZZyn3qr8gwqgQO-f5tuQ_cSHgPjYl';
+const GEMINI_KEY = 'AIzaSyCwVxVe7F1H8mvWhvtTGUPRvVJLEHSG-VQ';
+
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const PROPS = [
+  {id:0,city:'באר שבע',street:'הכנסת'},
+  {id:1,city:'באר שבע',street:'הכ"ג'},
+  {id:2,city:'נתיבות',street:'רפיח ים'},
+  {id:3,city:'אשקלון',street:'שפירא'},
+];
+
+let currentUser = null;
+let pendingReceiptData = null;
+
+// =============================================
+// UTILS
+// =============================================
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function daysUntil(s) { return Math.ceil((new Date(s) - new Date()) / 86400000); }
+function formatDate(s) { if (!s) return '—'; const [y,m,d] = s.split('T')[0].split('-'); return `${d}/${m}/${y}`; }
+function propLabel(id) { const p = PROPS[+id]; return p ? `${p.city} · ${p.street}` : '—'; }
+
+function setDate() {
+  const d = new Date();
+  const days = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+  const months = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+  document.getElementById('header-date').textContent = `יום ${days[d.getDay()]}, ${d.getDate()} ב${months[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+// =============================================
+// AUTH
+// =============================================
+function switchAuthTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach(b => b.classList.remove('active'));
+  document.getElementById('login-form').style.display = tab === 'login' ? '' : 'none';
+  document.getElementById('register-form').style.display = tab === 'register' ? '' : 'none';
+  event.target.classList.add('active');
+  document.getElementById('auth-error').style.display = 'none';
+}
+
+function showAuthError(msg) {
+  const el = document.getElementById('auth-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass = document.getElementById('login-pass').value;
+  if (!email || !pass) { showAuthError('אנא מלא מייל וסיסמה'); return; }
+  const { data, error } = await db.auth.signInWithPassword({ email, password: pass });
+  if (error) { showAuthError('שם משתמש או סיסמה שגויים'); return; }
+  enterApp(data.user);
+}
+
+async function doRegister() {
+  const name = document.getElementById('reg-name').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  const pass = document.getElementById('reg-pass').value;
+  if (!name || !email || !pass) { showAuthError('אנא מלא את כל השדות'); return; }
+  if (pass.length < 6) { showAuthError('הסיסמה חייבת להיות לפחות 6 תווים'); return; }
+  const { data, error } = await db.auth.signUp({ email, password: pass, options: { data: { full_name: name } } });
+  if (error) { showAuthError(error.message); return; }
+  // Save profile
+  await db.from('profiles').upsert({ id: data.user.id, full_name: name, role: 'admin' });
+  toast('החשבון נוצר! מתחבר...');
+  setTimeout(() => enterApp(data.user), 1000);
+}
+
+async function doLogout() {
+  await db.auth.signOut();
+  currentUser = null;
+  document.getElementById('auth-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+}
+
+function enterApp(user) {
+  currentUser = user;
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  const name = user.user_metadata?.full_name || user.email;
+  document.getElementById('user-greeting').textContent = `שלום, ${name}`;
+  setDate();
+  renderDashboard();
+}
+
+// Check session on load
+db.auth.getSession().then(({ data }) => {
+  if (data.session) enterApp(data.session.user);
+});
+
+// =============================================
+// NAVIGATION
+// =============================================
+function showTab(tab) {
+  document.querySelectorAll('[id^="tab-"]').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + tab).style.display = '';
+  const map = { dashboard:0, contracts:1, 'add-contract':2, finance:3, 'add-finance':4, receipts:5, notifications:6, users:7 };
+  const btns = document.querySelectorAll('.nav-btn');
+  if (map[tab] !== undefined && btns[map[tab]]) btns[map[tab]].classList.add('active');
+  if (tab === 'dashboard') renderDashboard();
+  if (tab === 'contracts') renderContracts();
+  if (tab === 'finance') renderFinance();
+  if (tab === 'receipts') renderReceiptsList();
+  if (tab === 'notifications') renderNotifications();
+  if (tab === 'users') renderUsers();
+  if (tab === 'add-finance') document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+}
+
+// =============================================
+// DASHBOARD
+// =============================================
+async function renderDashboard() {
+  const { data: contracts } = await db.from('contracts').select('*').neq('status', 'ended');
+  const { data: finances } = await db.from('finances').select('*');
+
+  let monthly = 0, annual = 0, expenses = 0, rented = 0;
+  const activeByProp = {};
+  (contracts || []).forEach(c => { activeByProp[c.prop_id] = c; monthly += +c.rent_amount; annual += +c.rent_amount * 12; rented++; });
+  (finances || []).forEach(f => { if (f.type === 'expense') expenses += +f.amount; });
+
+  document.getElementById('s-monthly').textContent = '₪' + monthly.toLocaleString();
+  document.getElementById('s-annual').textContent = '₪' + annual.toLocaleString();
+  document.getElementById('s-expenses').textContent = '₪' + expenses.toLocaleString();
+  document.getElementById('s-rented').textContent = rented + ' / 4';
+
+  document.getElementById('props-grid').innerHTML = PROPS.map(p => {
+    const c = activeByProp[p.id];
+    let st = '', inc = '';
+    if (c) {
+      const d = daysUntil(c.end_date);
+      const cls = d <= 60 ? 'expiring' : 'rented';
+      const lbl = d <= 60 ? `פג בעוד ${d} ימים` : 'מושכרת';
+      st = `<span class="prop-status ${cls}"><span style="width:6px;height:6px;border-radius:50%;background:currentColor;display:inline-block;"></span> ${lbl}</span>`;
+      inc = `<div class="prop-income">שכ"ד: <span>₪${(+c.rent_amount).toLocaleString()}/חודש</span> · <span>${c.tenant_name}</span></div>`;
+    } else {
+      st = `<span class="prop-status vacant"><span style="width:6px;height:6px;border-radius:50%;background:currentColor;display:inline-block;"></span> פנויה</span>`;
+      inc = `<div class="prop-income" style="color:#94A3B8;">אין חוזה פעיל</div>`;
+    }
+    return `<div class="prop-card" onclick="showTab('contracts')"><div class="prop-city">${p.city}</div><div class="prop-street">רח' ${p.street}</div>${st}${inc}</div>`;
+  }).join('');
+
+  const alerts = [];
+  (contracts || []).forEach(c => {
+    const d = daysUntil(c.end_date);
+    if (d >= 0 && d <= 90) {
+      const cls = d <= 30 ? 'danger' : 'warn';
+      alerts.push(`<div class="alert-item ${cls}"><span class="alert-dot"></span><span>חוזה ${propLabel(c.prop_id)} עם <strong>${c.tenant_name}</strong> מסתיים בעוד <strong>${d} ימים</strong> (${formatDate(c.end_date)})</span><div class="alert-actions"><button style="font-size:12px;padding:4px 10px;border-radius:6px;border:0.5px solid currentColor;background:none;cursor:pointer;color:inherit;" onclick="showTab('add-contract')">חדש</button></div></div>`);
+    }
+  });
+  document.getElementById('alerts-section').innerHTML = alerts.length ? `<div class="section-title">התראות</div>${alerts.join('')}` : '';
+
+  const recent = [...(finances || [])].sort((a,b) => b.date.localeCompare(a.date)).slice(0, 8);
+  document.getElementById('recent-tbody').innerHTML = recent.length
+    ? recent.map(f => `<tr><td>${formatDate(f.date)}</td><td>${propLabel(f.prop_id)}</td><td><span class="badge ${f.type==='income'?'badge-green':'badge-coral'}">${f.type==='income'?'הכנסה':'הוצאה'}</span></td><td>${f.description||f.category}</td><td class="${f.type==='income'?'income-amt':'expense-amt'}">${f.type==='income'?'+':'-'}₪${(+f.amount).toLocaleString()}</td></tr>`).join('')
+    : `<tr><td colspan="5" class="empty-state">אין רשומות עדיין</td></tr>`;
+}
+
+// =============================================
+// CONTRACTS
+// =============================================
+async function renderContracts() {
+  const el = document.getElementById('contracts-list');
+  el.innerHTML = `<div class="loading-state">טוען חוזים...</div>`;
+  const { data: contracts } = await db.from('contracts').select('*').order('created_at', { ascending: false });
+  if (!contracts || !contracts.length) { el.innerHTML = `<div class="empty-state">אין חוזים עדיין. לחץ "+ חוזה חדש"</div>`; return; }
+  el.innerHTML = contracts.map(c => {
+    const days = daysUntil(c.end_date);
+    const dur = Math.round((new Date(c.end_date) - new Date(c.start_date)) / 86400000 / 30);
+    let db2 = '';
+    if (days < 0) db2 = `<span class="days-badge" style="background:#F1F5F9;color:#64748B;">הסתיים</span>`;
+    else if (days <= 30) db2 = `<span class="days-badge" style="background:var(--red-50);color:var(--red-800);">${days} יום נותרו</span>`;
+    else if (days <= 90) db2 = `<span class="days-badge" style="background:var(--amber-50);color:var(--amber-800);">${days} יום נותרו</span>`;
+    else db2 = `<span class="days-badge" style="background:var(--green-50);color:var(--green-800);">${days} יום נותרו</span>`;
+    return `<div class="contract-card"><div class="contract-top"><div><div class="contract-tenant">${c.tenant_name}</div><div class="contract-addr">${propLabel(c.prop_id)}</div></div>${db2}</div>
+    <div class="contract-grid">
+      <div class="cf"><label>תחילת חוזה</label><span>${formatDate(c.start_date)}</span></div>
+      <div class="cf"><label>סיום חוזה</label><span>${formatDate(c.end_date)}</span></div>
+      <div class="cf"><label>אורך</label><span>${dur} חודשים</span></div>
+      <div class="cf"><label>שכר דירה</label><span>₪${(+c.rent_amount).toLocaleString()}</span></div>
+      <div class="cf"><label>יום תשלום</label><span>${c.payment_day||'—'}</span></div>
+      <div class="cf"><label>פיקדון</label><span>${c.deposit?'₪'+(+c.deposit).toLocaleString():'—'}</span></div>
+      <div class="cf"><label>טלפון</label><span dir="ltr">${c.tenant_phone||'—'}</span></div>
+      <div class="cf"><label>מייל</label><span dir="ltr">${c.tenant_email||'—'}</span></div>
+      ${c.notes?`<div class="cf" style="grid-column:1/-1;"><label>הערות</label><span>${c.notes}</span></div>`:''}
+    </div></div>`;
+  }).join('');
+}
+
+async function saveContract() {
+  const prop = document.getElementById('c-prop').value;
+  const tenant = document.getElementById('c-tenant').value.trim();
+  const start = document.getElementById('c-start').value;
+  const end = document.getElementById('c-end').value;
+  const rent = document.getElementById('c-rent').value;
+  if (!prop || !tenant || !start || !end || !rent) { toast('אנא מלא את כל שדות החובה'); return; }
+  const { error } = await db.from('contracts').insert({
+    prop_id: +prop, tenant_name: tenant, start_date: start, end_date: end,
+    rent_amount: +rent, tenant_phone: document.getElementById('c-phone').value,
+    tenant_email: document.getElementById('c-email').value, payment_day: +document.getElementById('c-day').value||null,
+    deposit: +document.getElementById('c-deposit').value||null, tenant_id: document.getElementById('c-id').value,
+    notes: document.getElementById('c-notes').value, status: 'active', created_by: currentUser.id
+  });
+  if (error) { toast('שגיאה בשמירה: ' + error.message); return; }
+  ['c-prop','c-tenant','c-start','c-end','c-rent','c-phone','c-email','c-day','c-deposit','c-id','c-notes'].forEach(id => { document.getElementById(id).value=''; });
+  toast('החוזה נשמר בהצלחה ✓');
+  showTab('contracts');
+}
+
+// =============================================
+// FINANCES
+// =============================================
+async function renderFinance() {
+  const fp = document.getElementById('ff-prop').value;
+  const ft = document.getElementById('ff-type').value;
+  const fy = document.getElementById('ff-year').value;
+  let q = db.from('finances').select('*').order('date', { ascending: false });
+  if (fp !== '') q = q.eq('prop_id', +fp);
+  if (ft) q = q.eq('type', ft);
+  const { data } = await q;
+  let list = data || [];
+  if (fy) list = list.filter(f => f.date.startsWith(fy));
+  const ti = list.filter(f=>f.type==='income').reduce((s,f)=>s+ +f.amount,0);
+  const te = list.filter(f=>f.type==='expense').reduce((s,f)=>s+ +f.amount,0);
+  document.getElementById('finance-summary').textContent = `הכנסות: ₪${ti.toLocaleString()} | הוצאות: ₪${te.toLocaleString()} | רווח: ₪${(ti-te).toLocaleString()}`;
+  document.getElementById('finance-tbody').innerHTML = list.length
+    ? list.map(f => `<tr><td>${formatDate(f.date)}</td><td>${propLabel(f.prop_id)}</td><td><span class="badge ${f.type==='income'?'badge-green':'badge-coral'}">${f.category}</span></td><td>${f.description||'—'}</td><td>${f.receipt_url?`<a href="${f.receipt_url}" target="_blank" style="color:var(--teal-600);font-size:12px;">📎 צפה</a>`:'—'}</td><td class="${f.type==='income'?'income-amt':'expense-amt'}">${f.type==='income'?'+':'-'}₪${(+f.amount).toLocaleString()}</td></tr>`).join('')
+    : `<tr><td colspan="6" class="empty-state">אין רשומות</td></tr>`;
+}
+
+async function saveFinance(extraData = {}) {
+  const amount = extraData.amount || document.getElementById('f-amount').value;
+  const date = extraData.date || document.getElementById('f-date').value;
+  if (!amount || !date) { toast('אנא מלא סכום ותאריך'); return; }
+  const { error } = await db.from('finances').insert({
+    type: extraData.type || document.getElementById('f-type').value,
+    prop_id: +(extraData.prop_id !== undefined ? extraData.prop_id : document.getElementById('f-prop').value),
+    category: extraData.category || document.getElementById('f-cat').value,
+    amount: +amount, date,
+    description: extraData.description || document.getElementById('f-desc').value,
+    receipt_url: extraData.receipt_url || null,
+    created_by: currentUser.id
+  });
+  if (error) { toast('שגיאה: ' + error.message); return false; }
+  if (!extraData.silent) {
+    document.getElementById('f-amount').value = '';
+    document.getElementById('f-desc').value = '';
+    toast('הרשומה נשמרה ✓');
+    showTab('finance');
+  }
+  return true;
+}
+
+// =============================================
+// RECEIPTS + AI
+// =============================================
+function handleDrag(e) { e.preventDefault(); document.getElementById('upload-area').classList.add('dragover'); }
+function handleDrop(e) { e.preventDefault(); document.getElementById('upload-area').classList.remove('dragover'); handleReceiptFile(e.dataTransfer.files[0]); }
+
+async function handleReceiptFile(file) {
+  if (!file) return;
+  const preview = document.getElementById('receipt-preview');
+  const content = document.getElementById('ai-result-content');
+  preview.style.display = 'block';
+  document.getElementById('receipt-actions').style.display = 'none';
+  content.innerHTML = `<div class="analyzing"><div class="spinner"></div>מנתח קבלה עם AI...</div>`;
+
+  // Upload to Supabase Storage
+  const ext = file.name.split('.').pop();
+  const fileName = `${Date.now()}_${Math.random().toString(36).substr(2,8)}.${ext}`;
+  const { data: uploadData, error: uploadError } = await db.storage.from('receipts').upload(fileName, file);
+  if (uploadError) { content.innerHTML = `<div class="analyzing">שגיאה בהעלאה: ${uploadError.message}</div>`; return; }
+  const { data: urlData } = db.storage.from('receipts').getPublicUrl(fileName);
+  const fileUrl = urlData.publicUrl;
+
+  // Convert to base64 for Gemini
+  const base64 = await fileToBase64(file);
+  const mimeType = file.type || 'image/jpeg';
+
+  // Call Gemini
+  const propNames = PROPS.map((p,i) => `${i}: ${p.city} רח' ${p.street}`).join(', ');
+  const prompt = `אתה מנתח קבלות עבור מנהל נכסים. הנכסים הם: ${propNames}.
+נתח את הקבלה הזו והחזר JSON בלבד (ללא markdown) עם השדות:
+{
+  "prop_id": מספר הנכס הכי מתאים (0-3) לפי כתובת בקבלה, אם לא ברור תחזיר 0,
+  "amount": סכום בשקלים (מספר בלבד),
+  "date": תאריך בפורמט YYYY-MM-DD,
+  "category": אחד מ: שכר דירה / תיקון-תחזוקה / ארנונה / ועד בית / ביטוח / שיפוץ / אחר,
+  "description": תיאור קצר של מה שנרכש/שולם,
+  "type": income או expense,
+  "confidence": גבוה / בינוני / נמוך
+}`;
+
+  try {
+    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [
+          { text: prompt },
+          { inline_data: { mime_type: mimeType, data: base64 } }
+        ]}]
+      })
+    });
+    const result = await resp.json();
+    const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+    const clean = text.replace(/```json|```/g, '').trim();
+    const ai = JSON.parse(clean);
+
+    pendingReceiptData = { ...ai, file_url: fileUrl, file_name: file.name };
+
+    const confColor = ai.confidence === 'גבוה' ? 'badge-green' : ai.confidence === 'בינוני' ? 'badge-amber' : 'badge-coral';
+    content.innerHTML = `
+      <div class="ai-result">
+        <div class="ai-row"><span class="ai-label">דירה מזוהה</span><span class="ai-val">${propLabel(ai.prop_id)}</span></div>
+        <div class="ai-row"><span class="ai-label">סכום</span><span class="ai-val">₪${(+ai.amount).toLocaleString()}</span></div>
+        <div class="ai-row"><span class="ai-label">תאריך</span><span class="ai-val">${formatDate(ai.date)}</span></div>
+        <div class="ai-row"><span class="ai-label">קטגוריה</span><span class="ai-val">${ai.category}</span></div>
+        <div class="ai-row"><span class="ai-label">תיאור</span><span class="ai-val">${ai.description}</span></div>
+        <div class="ai-row"><span class="ai-label">סוג</span><span class="ai-val">${ai.type === 'income' ? 'הכנסה' : 'הוצאה'}</span></div>
+        <div class="ai-row"><span class="ai-label">רמת ביטחון AI</span><span class="ai-val"><span class="badge ${confColor}">${ai.confidence}</span></span></div>
+      </div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:8px;">האם הנתונים נכונים? אשר כדי לשמור לרשומות הכספיות.</p>`;
+    document.getElementById('receipt-actions').style.display = 'flex';
+
+    // Save receipt record
+    await db.from('receipts').insert({
+      file_name: file.name, file_url: fileUrl, file_type: file.type,
+      ai_analysis: ai, status: 'pending', created_by: currentUser.id
+    });
+  } catch(e) {
+    content.innerHTML = `<div class="analyzing">שגיאה בניתוח AI: ${e.message}</div>`;
+  }
+}
+
+async function confirmReceipt() {
+  if (!pendingReceiptData) return;
+  const ok = await saveFinance({
+    type: pendingReceiptData.type,
+    prop_id: pendingReceiptData.prop_id,
+    category: pendingReceiptData.category,
+    amount: pendingReceiptData.amount,
+    date: pendingReceiptData.date,
+    description: pendingReceiptData.description,
+    receipt_url: pendingReceiptData.file_url,
+    silent: true
+  });
+  if (ok) {
+    await db.from('receipts').update({ status: 'linked' }).eq('file_url', pendingReceiptData.file_url);
+    toast('הקבלה נשמרה ברשומות ✓');
+    resetReceipt();
+    renderReceiptsList();
+  }
+}
+
+function resetReceipt() {
+  document.getElementById('receipt-preview').style.display = 'none';
+  document.getElementById('receipt-file').value = '';
+  pendingReceiptData = null;
+}
+
+async function renderReceiptsList() {
+  const { data } = await db.from('receipts').select('*').order('created_at', { ascending: false });
+  const tbody = document.getElementById('receipts-tbody');
+  if (!data || !data.length) { tbody.innerHTML = `<tr><td colspan="6" class="empty-state">אין קבלות עדיין</td></tr>`; return; }
+  tbody.innerHTML = data.map(r => {
+    const ai = r.ai_analysis || {};
+    const statusMap = { pending: 'ממתין', linked: 'מקושר', rejected: 'נדחה' };
+    const statusClass = { pending: 'badge-amber', linked: 'badge-green', rejected: 'badge-coral' };
+    return `<tr>
+      <td>${formatDate(r.created_at)}</td>
+      <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.file_name}</td>
+      <td>${ai.prop_id !== undefined ? propLabel(ai.prop_id) : '—'}</td>
+      <td>${ai.amount ? '₪' + (+ai.amount).toLocaleString() : '—'}</td>
+      <td><span class="badge ${statusClass[r.status]||'badge-blue'}">${statusMap[r.status]||r.status}</span></td>
+      <td><a href="${r.file_url}" target="_blank" style="color:var(--teal-600);font-size:12px;">📎 צפה</a></td>
+    </tr>`;
+  }).join('');
+}
+
+function fileToBase64(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result.split(',')[1]);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+// =============================================
+// NOTIFICATIONS
+// =============================================
+async function renderNotifications() {
+  const days = localStorage.getItem('notif_days') || 90;
+  const email = localStorage.getItem('notif_email') || '';
+  document.getElementById('notif-days').value = days;
+  if (email) document.getElementById('notif-email').value = email;
+
+  const { data: contracts } = await db.from('contracts').select('*').neq('status','ended');
+  const threshold = +days;
+  const upcoming = (contracts||[]).filter(c => { const d = daysUntil(c.end_date); return d >= 0 && d <= threshold; });
+  const el = document.getElementById('notif-preview');
+  el.innerHTML = upcoming.length
+    ? upcoming.map(c => { const d = daysUntil(c.end_date);
+      return `<div class="notif-email"><div class="email-icon">✉</div><div><strong>אל:</strong> ${email||'(לא הוגדר)'}<br><strong>נושא:</strong> התראה — חוזה ${propLabel(c.prop_id)} פג בעוד ${d} ימים<br><span style="color:var(--teal-600);">שוכר: ${c.tenant_name} · סיום: ${formatDate(c.end_date)} · שכ"ד: ₪${(+c.rent_amount).toLocaleString()}</span></div></div>`;
+    }).join('')
+    : `<div class="empty-state">אין חוזים הקרובים לפקיעה ב-${threshold} הימים הקרובים.</div>`;
+}
+
+function saveNotif() {
+  localStorage.setItem('notif_email', document.getElementById('notif-email').value);
+  localStorage.setItem('notif_days', document.getElementById('notif-days').value);
+  toast('הגדרות נשמרו ✓');
+  renderNotifications();
+}
+
+// =============================================
+// USERS
+// =============================================
+async function renderUsers() {
+  const { data } = await db.from('profiles').select('*');
+  const el = document.getElementById('users-list');
+  if (!data || !data.length) { el.innerHTML = `<div class="empty-state">אין משתמשים</div>`; return; }
+  el.innerHTML = data.map(u => `
+    <div class="user-card">
+      <div class="user-info">
+        <div class="user-avatar">${(u.full_name||'?')[0]}</div>
+        <div><div class="user-name">${u.full_name||'—'}</div><div class="user-email">${u.phone||''}</div></div>
+      </div>
+      <span class="badge ${u.role==='admin'?'badge-blue':'badge-green'}">${u.role==='admin'?'מנהל':'צפייה'}</span>
+    </div>`).join('');
+}
+
+async function inviteUser() {
+  const name = document.getElementById('new-user-name').value.trim();
+  const email = document.getElementById('new-user-email').value.trim();
+  const pass = document.getElementById('new-user-pass').value;
+  const role = document.getElementById('new-user-role').value;
+  if (!name || !email || !pass) { toast('אנא מלא את כל השדות'); return; }
+  const { data, error } = await db.auth.signUp({ email, password: pass, options: { data: { full_name: name } } });
+  if (error) { toast('שגיאה: ' + error.message); return; }
+  await db.from('profiles').upsert({ id: data.user.id, full_name: name, role });
+  toast('המשתמש נוסף ✓');
+  ['new-user-name','new-user-email','new-user-pass'].forEach(id => document.getElementById(id).value='');
+  renderUsers();
+}
+</script>
+</body>
+</html>
